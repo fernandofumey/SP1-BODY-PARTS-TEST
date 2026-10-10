@@ -30,6 +30,7 @@
             background-color: white;
             cursor: pointer;
             transition: all 0.2s ease;
+            margin: 0; /* Reset margin for flex layout */
         }
         .option-label:hover {
             border-color: #0284c7;
@@ -39,11 +40,6 @@
             font-weight: bold;
             color: #0369a1;
         }
-        /* Prevents users from dragging images to search them */
-        img {
-            pointer-events: none;
-            -webkit-user-drag: none;
-        }
     </style>
 </head>
 <body class="bg-sky-50 text-sky-950 min-h-screen flex flex-col items-center justify-center p-4" oncontextmenu="return false;" oncopy="return false;" oncut="return false;" onpaste="return false;">
@@ -52,8 +48,8 @@
         
         <!-- Header -->
         <div class="bg-sky-600 p-6 text-white text-center">
-            <h1 class="text-3xl font-bold tracking-wide">Partes del Cuerpo</h1>
-            <p class="text-sky-100 mt-2">Comprehensive 24-Question Evaluation (Spanish I: Body Parts)</p>
+            <h1 class="text-3xl font-bold tracking-wide">Partes del Cuerpo Test</h1>
+            <p class="text-sky-100 mt-2">Comprehensive Evaluation (Spanish I - Body Parts)</p>
         </div>
 
         <!-- Start Screen: Student Info Entry -->
@@ -110,6 +106,13 @@
                 </div>
             </div>
 
+            <!-- Main Question Audio Button -->
+            <div class="flex justify-center mb-6">
+                <button id="btn-read-question" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 shadow-md transition duration-200">
+                    🔊 Read-Aloud
+                </button>
+            </div>
+
             <h2 id="question-text" class="text-xl font-bold mb-6 text-sky-950 select-none text-center">Selecciona la parte del cuerpo correcta:</h2>
             
             <div id="options-container" class="space-y-3 mb-8">
@@ -156,33 +159,44 @@
     </div>
 
     <script>
-        /* 24 Question Master Bank - Partes del Cuerpo */
-        /* Note for Instructor: You can replace the imgUrl values below with direct links to actual images if desired. */
+        // Native browser text-to-speech
+        function speakText(text, lang, cancelPrevious = true) {
+            if ('speechSynthesis' in window) {
+                if (cancelPrevious) {
+                    window.speechSynthesis.cancel();
+                }
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // 24 Body Parts Array with English Hint
         const rawQuestions = [
-            { correct: "cabeza", distractors: ["cuello", "codo", "rodilla"], hint: "Head" },
-            { correct: "cuello", distractors: ["garganta", "espalda", "pecho"], hint: "Neck" },
-            { correct: "boca", distractors: ["nariz", "orejas", "ojos"], hint: "Mouth" },
-            { correct: "lengua", distractors: ["dientes", "labios", "boca"], hint: "Tongue" },
-            { correct: "labios", distractors: ["dientes", "lengua", "orejas"], hint: "Lips" },
-            { correct: "dientes", distractors: ["labios", "boca", "lengua"], hint: "Teeth" },
-            { correct: "ojos", distractors: ["orejas", "nariz", "boca"], hint: "Eyes" },
-            { correct: "nariz", distractors: ["boca", "ojos", "orejas"], hint: "Nose" },
-            { correct: "garganta", distractors: ["cuello", "pecho", "espalda"], hint: "Throat" },
-            { correct: "orejas", distractors: ["ojos", "nariz", "boca"], hint: "Ears" },
-            { correct: "pecho", distractors: ["abdomen", "espalda", "brazo"], hint: "Chest" },
-            { correct: "espalda", distractors: ["pecho", "abdomen", "cintura"], hint: "Back" },
-            { correct: "abdomen", distractors: ["pecho", "espalda", "cadera"], hint: "Abdomen" },
-            { correct: "brazo", distractors: ["pierna", "mano", "codo"], hint: "Arm" },
-            { correct: "codo", distractors: ["rodilla", "tobillo", "brazo"], hint: "Elbow" },
-            { correct: "mano", distractors: ["pie", "brazo", "dedos"], hint: "Hand" },
-            { correct: "dedos", distractors: ["uña", "mano", "brazo"], hint: "Fingers" },
-            { correct: "cadera", distractors: ["cintura", "espalda", "pierna"], hint: "Hip" },
-            { correct: "cintura", distractors: ["cadera", "abdomen", "espalda"], hint: "Waist" },
-            { correct: "rodilla", distractors: ["codo", "tobillo", "pierna"], hint: "Knee" },
-            { correct: "pierna", distractors: ["brazo", "pie", "rodilla"], hint: "Leg" },
-            { correct: "tobillo", distractors: ["rodilla", "codo", "pie"], hint: "Ankle" },
-            { correct: "pie", distractors: ["mano", "pierna", "tobillo"], hint: "Foot" },
-            { correct: "uña", distractors: ["dedos", "mano", "pie"], hint: "Nail" }
+            { hint: "Head", correct: "cabeza", distractors: ["cuello", "pecho", "espalda"] },
+            { hint: "Neck", correct: "cuello", distractors: ["garganta", "cabeza", "hombro"] },
+            { hint: "Mouth", correct: "boca", distractors: ["labios", "lengua", "dientes"] },
+            { hint: "Tongue", correct: "lengua", distractors: ["boca", "dientes", "labios"] },
+            { hint: "Lips", correct: "labios", distractors: ["boca", "lengua", "nariz"] },
+            { hint: "Teeth", correct: "dientes", distractors: ["labios", "lengua", "boca"] },
+            { hint: "Eyes", correct: "ojos", distractors: ["orejas", "nariz", "boca"] },
+            { hint: "Nose", correct: "nariz", distractors: ["ojos", "boca", "orejas"] },
+            { hint: "Throat", correct: "garganta", distractors: ["cuello", "pecho", "boca"] },
+            { hint: "Ears", correct: "orejas", distractors: ["ojos", "cabeza", "cuello"] },
+            { hint: "Chest", correct: "pecho", distractors: ["espalda", "abdomen", "brazo"] },
+            { hint: "Back", correct: "espalda", distractors: ["pecho", "cadera", "cintura"] },
+            { hint: "Abdomen", correct: "abdomen", distractors: ["pecho", "cintura", "espalda"] },
+            { hint: "Arm", correct: "brazo", distractors: ["pierna", "mano", "codo"] },
+            { hint: "Elbow", correct: "codo", distractors: ["rodilla", "brazo", "mano"] },
+            { hint: "Hand", correct: "mano", distractors: ["pie", "brazo", "dedos"] },
+            { hint: "Fingers", correct: "dedos", distractors: ["uña", "mano", "brazo"] },
+            { hint: "Hip", correct: "cadera", distractors: ["cintura", "espalda", "pierna"] },
+            { hint: "Waist", correct: "cintura", distractors: ["cadera", "abdomen", "espalda"] },
+            { hint: "Knee", correct: "rodilla", distractors: ["codo", "pierna", "tobillo"] },
+            { hint: "Leg", correct: "pierna", distractors: ["brazo", "pie", "rodilla"] },
+            { hint: "Ankle", correct: "tobillo", distractors: ["pie", "rodilla", "codo"] },
+            { hint: "Foot", correct: "pie", distractors: ["mano", "pierna", "tobillo"] },
+            { hint: "Nail", correct: "uña", distractors: ["dedos", "mano", "pie"] }
         ];
 
         let quizQuestions = [];
@@ -190,10 +204,11 @@
         let userAnswers = {}; // index -> selected answer string
         let cheatCount = 0;
         let studentData = {};
+        
+        // Timer Tracking
         let testStartTime = "";
         let testEndTime = "";
-        
-        // Update local storage key for the new test subject
+
         let submittedEmails = JSON.parse(localStorage.getItem('submitted_body_parts_emails') || '[]');
 
         const startScreen = document.getElementById('start-screen');
@@ -202,6 +217,7 @@
         const studentForm = document.getElementById('student-form');
         const questionTracker = document.getElementById('question-tracker');
         const englishHintText = document.getElementById('english-hint');
+        const btnReadQuestion = document.getElementById('btn-read-question');
         const optionsContainer = document.getElementById('options-container');
         const btnBack = document.getElementById('btn-back');
         const btnNext = document.getElementById('btn-next');
@@ -234,26 +250,24 @@
             }
             emailError.classList.add('hidden');
 
+            testStartTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+
             studentData = {
                 firstName: document.getElementById('fname').value.trim(),
                 lastName: document.getElementById('lname').value.trim(),
                 email: emailInput.value.trim(),
                 period: document.getElementById('period').value,
-                date: new Date().toLocaleDateString()
+                date: new Date().toLocaleDateString() // Will append times at the end
             };
-
-            testStartTime = new Date().toLocaleTimeString();
 
             quizQuestions = rawQuestions.map(item => {
                 const allOpts = shuffleArray([item.correct, ...item.distractors]);
-                
                 return {
+                    hint: item.hint,
                     correct: item.correct,
-                    options: allOpts,
-                    hint: item.hint
+                    options: allOpts
                 };
             });
-            
             quizQuestions = shuffleArray(quizQuestions);
 
             startScreen.classList.add('hidden');
@@ -266,10 +280,27 @@
             questionTracker.textContent = `Question ${currentQuestionIndex + 1} / ${quizQuestions.length}`;
             englishHintText.textContent = currentQ.hint;
             
+            // Stop speech when navigating between questions
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+
+            // Play Spanish instruction followed by English hint
+            btnReadQuestion.onclick = () => {
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                speakText("Selecciona la parte del cuerpo correcta:", 'es-ES', false);
+                speakText(currentQ.hint, 'en-US', false);
+            };
+
             optionsContainer.innerHTML = '';
             currentQ.options.forEach((opt, idx) => {
+                // Wrapper flexbox to separate the label and the button
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'flex items-center gap-3 w-full';
+
+                // Label (The clickable area for the radio button)
                 const label = document.createElement('label');
-                label.className = 'option-label';
+                label.className = 'option-label flex-grow flex items-center';
                 
                 const input = document.createElement('input');
                 input.type = 'radio';
@@ -285,12 +316,26 @@
                 });
 
                 const span = document.createElement('span');
-                span.className = 'option-text capitalize';
+                span.className = 'option-text capitalize ml-2';
                 span.textContent = opt;
 
                 label.appendChild(input);
                 label.appendChild(span);
-                optionsContainer.appendChild(label);
+
+                // Audio Button (Kept OUTSIDE the label so it doesn't trigger selection)
+                const readBtn = document.createElement('button');
+                readBtn.type = 'button';
+                readBtn.className = 'bg-sky-100 hover:bg-sky-200 text-sky-800 font-bold py-3 px-4 rounded-lg flex items-center gap-2 shadow-sm transition-colors text-sm border border-sky-300 flex-shrink-0';
+                readBtn.innerHTML = '🔊 Read';
+                
+                readBtn.onclick = () => {
+                    speakText(opt, 'es-ES'); 
+                };
+
+                rowDiv.appendChild(label);
+                rowDiv.appendChild(readBtn);
+
+                optionsContainer.appendChild(rowDiv);
             });
 
             btnBack.style.display = currentQuestionIndex === 0 ? 'none' : 'block';
@@ -346,19 +391,23 @@
         });
 
         function finishQuiz() {
-            testEndTime = new Date().toLocaleTimeString();
             let scoreCount = 0;
             let resultsSummaryArr = [];
+
+            // Capture End Time
+            testEndTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            // Format Date field for Google Sheets
+            const finalDateString = `${studentData.date} (Start: ${testStartTime} - End: ${testEndTime})`;
 
             quizQuestions.forEach((item, idx) => {
                 const uAns = userAnswers[idx];
                 const isCorrect = uAns === item.correct;
                 if (isCorrect) {
                     scoreCount++;
-                    resultsSummaryArr.push(`question ${idx + 1} (${item.hint}): right answer: '${item.correct}'`);
+                    resultsSummaryArr.push(`Q${idx + 1}: right ('${item.correct}')`);
                 } else {
-                    const wrongAns = uAns !== undefined ? uAns : 'No answer provided';
-                    resultsSummaryArr.push(`question ${idx + 1} (${item.hint}): wrong answer: '${wrongAns}'; right answer: '${item.correct}'`);
+                    const wrongAns = uAns !== undefined ? uAns : 'No answer';
+                    resultsSummaryArr.push(`Q${idx + 1}: wrong ('${wrongAns}'; right: '${item.correct}')`);
                 }
             });
 
@@ -369,13 +418,13 @@
             localStorage.setItem('submitted_body_parts_emails', JSON.stringify(submittedEmails));
 
             // ====================================================================================
-            // EXACT SCRIPT URL RETAINED AS REQUESTED
+            // GOOGLE SHEET WEB APP URL
             // ====================================================================================
             const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxCS4RTjryw4mNi7frycJVuY0dXO9iEHqKMkTjRLQwiRKmhf5Yoa_pFUsCQwXvxP6g/exec";
 
             const payloadData = {
                 title: "Partes del Cuerpo Test (24 Qs)",
-                date: `${studentData.date} (Start: ${testStartTime} - End: ${testEndTime})`,
+                date: finalDateString, // Date + Start Time + End Time appended together
                 firstName: studentData.firstName,
                 lastName: studentData.lastName,
                 email: studentData.email,
@@ -386,6 +435,7 @@
             };
 
             if (GOOGLE_SHEET_WEB_APP_URL) {
+                // Formatting payload as form data to bypass strict CORS
                 const formBody = [];
                 for (const property in payloadData) {
                   const encodedKey = encodeURIComponent(property);
@@ -416,7 +466,7 @@
 
         function downloadCSV(data) {
             const csvContent = "data:text/csv;charset=utf-8," + 
-                "Quiz Title,Date & Time,First Name,Last Name,Email,Period,Score,Cheating Alerts\n" +
+                "Quiz Title,Date/Time,First Name,Last Name,Email,Period,Score,Cheating Alerts\n" +
                 `"${data.title}","${data.date}","${data.firstName}","${data.lastName}","${data.email}","${data.period}","${data.score}",${data.cheatCount}`;
             
             const encodedUri = encodeURI(csvContent);
